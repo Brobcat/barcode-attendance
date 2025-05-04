@@ -81,15 +81,17 @@
     <div id="g_id_signin"></div>
   </div>
   <div class="container" id="scanner-ui" style="display:none;">
+    <div class="section" id="auto-section">
+      <h2>Automatic Scan</h2>
+      <div id="reader"></div>
+    </div>
+  
     <div class="section" id="manual-section">
       <h2>Manual Entry</h2>
       <input type="text" id="manual-id" placeholder="Enter ID to append" />
       <button id="manual-btn">Append ID</button>
     </div>
-    <div class="section" id="auto-section">
-      <h2>Automatic Scan</h2>
-      <div id="reader"></div>
-    </div>
+  
     <div class="section">
       <h2>Recent History</h2>
       <div id="history"></div>
@@ -214,7 +216,10 @@
       scanner = new Html5Qrcode('reader');
       scanner.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 600, height: 300 } }, // Set custom width and height
+        { 
+          fps: 10, 
+          qrbox: { width: 600, height: 300, y:100 } 
+        }, 
         decoded => { scanner.pause(); showPopup(decoded); },
         () => {}
       ).catch(err => console.error('Camera error:', err));
