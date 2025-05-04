@@ -6,14 +6,37 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
-    body { font-family: sans-serif; margin: 0; padding: 0; }
-    header { background: #2c3e50; color: white; padding: 1rem; text-align: center; font-size: 1.5rem; }
-    .container { display: flex; flex-direction: column; align-items: center; padding: 1rem; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+    }
+    header {
+      background: #2c3e50;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+    }
+    #scanner-ui {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      justify-content: space-around;
+      align-items: center;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
     .section {
       width: 90%;
-      max-width: 400px;
-      margin: 1.5rem auto;
-      text-align: center;
+      max-width: 500px;
     }
     .section h2 {
       margin-bottom: 0.5rem;
@@ -21,8 +44,19 @@
       border-bottom: 2px solid #34495e;
       padding-bottom: 0.25rem;
     }
-    button, input { font-size: 1rem; padding: 0.75rem 1rem; margin: 0.25rem 0; }
-    #reader { width: 100%; margin: auto; }
+    button, input {
+      font-size: 1rem;
+      padding: 0.75rem 1rem;
+      margin: 0.25rem 0;
+    }
+    input[type="text"] {
+      width: 80%;
+      max-width: 300px;
+    }
+    #reader {
+      width: 100%;
+      margin: auto;
+    }
     #history {
       background: #ecf0f1;
       padding: 0.5rem;
@@ -30,7 +64,9 @@
       max-height: 200px;
       overflow-y: auto;
     }
-    #history p { margin: 0.25rem 0; }
+    #history p {
+      margin: 0.25rem 0;
+    }
     #popup-overlay {
       display: none;
       position: fixed;
@@ -63,18 +99,14 @@
       color: white;
       font-size: 0.8rem;
     }
-    .cancel-btn-default {
-      background: gray;
-      color: white;
-      font-size: 0.8rem;
-      padding: 0.5rem;
-    }
-    .cancel-btn-duplicate {
+    .cancel-btn {
       background: red;
       color: white;
       font-size: 1rem;
-      padding: 0.75rem;
-      order: -1; /* appear above Continue */
+      padding: 0.5rem;
+    }
+    .cancel-btn.new {
+      background: gray;
     }
   </style>
 </head>
@@ -83,6 +115,7 @@
   <div class="container" id="signin-container">
     <div id="g_id_signin"></div>
   </div>
+
   <div class="container" id="scanner-ui" style="display:none;">
     <div class="section" id="manual-section">
       <h2>Manual Entry</h2>
@@ -98,13 +131,15 @@
       <div id="history"></div>
     </div>
   </div>
+
   <div id="popup-overlay">
-    <div id="popup" style="display: flex; flex-direction: column;">
+    <div id="popup">
       <p id="popup-text">ID scanned</p>
       <button id="popup-add"></button>
-      <button id="popup-cancel" class="">Cancel</button>
+      <button id="popup-cancel" class="cancel-btn">Cancel</button>
     </div>
   </div>
+
   <script>
     const CLIENT_ID = '353375855512-09nu021l1sf9t4m1v25v4jof4d6150lg.apps.googleusercontent.com';
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc3BDq0UoF54rKl8MjqCd13yTEFv_hAWtwIYoD6cYPXy-AC7ekqGOO--PR2I7FpcJ/exec';
@@ -120,7 +155,6 @@
     const popupText = document.getElementById('popup-text');
     const btnAdd = document.getElementById('popup-add');
     const btnCancel = document.getElementById('popup-cancel');
-    const popupBox = document.getElementById('popup');
 
     btnAdd.addEventListener('click', () => {
       addEntry(pendingId, true);
@@ -138,22 +172,21 @@
     function showPopup(id) {
       pendingId = id;
       const isDuplicate = SCANNED_IDS.has(id);
-      popupBox.style.display = 'flex';
 
       if (isDuplicate) {
         popupText.textContent = `ID ${id} Already Scanned`;
         btnAdd.textContent = 'Continue Anyway';
         btnAdd.className = 'continue-btn';
-
-        btnCancel.className = 'cancel-btn-duplicate';
-        popupBox.insertBefore(btnCancel, btnAdd);
+        btnCancel.className = 'cancel-btn'; // red
+        btnCancel.style.order = 0;
+        btnAdd.style.order = 1;
       } else {
         popupText.textContent = `ID ${id} Scanned`;
         btnAdd.textContent = 'Add';
         btnAdd.className = 'add-btn';
-
-        btnCancel.className = 'cancel-btn-default';
-        popupBox.appendChild(btnCancel); // ensure it's below
+        btnCancel.className = 'cancel-btn new'; // gray
+        btnCancel.style.order = 1;
+        btnAdd.style.order = 0;
       }
       overlay.style.display = 'flex';
     }
@@ -198,8 +231,7 @@
           return;
         }
         document.getElementById('signin-container').style.display = 'none';
-        document.getElementById('scanner-ui').style.display = 'block';
-        startScanner();
+        document.getElementById('scanner-ui').style.display = 'flex';
       } catch (err) {
         console.error('Token decode error:', err);
       }
