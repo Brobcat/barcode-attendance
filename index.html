@@ -9,8 +9,9 @@
     body { font-family: sans-serif; padding: 20px; text-align: center; }
     #scanner-ui { display: none; margin-top: 20px; }
     #reader { width: 300px; margin: auto; }
-    #log { margin-top: 20px; }
-    #manual-btn { margin-bottom: 10px; }
+    #log { margin-top: 20px; max-height: 200px; overflow-y: auto; text-align: left; }
+    #manual-container { margin-bottom: 10px; }
+    #manual-id { padding: 5px; width: 200px; }
   </style>
 </head>
 <body>
@@ -21,7 +22,10 @@
 
   <!-- Scanner UI (hidden until authorized) -->
   <div id="scanner-ui">
-    <button id="manual-btn" onclick="manualTest()">Manual Append Test</button>
+    <div id="manual-container">
+      <input type="text" id="manual-id" placeholder="Enter ID to append">
+      <button onclick="manualInput()">Append ID</button>
+    </div>
     <div id="reader"></div>
     <div id="log"></div>
   </div>
@@ -44,17 +48,14 @@
 
     // Callback after Google Sign-In
     function handleCredentialResponse(response) {
-      console.log('handleCredentialResponse:', response);
       idToken = response.credential;
       try {
         const payload = JSON.parse(atob(idToken.split('.')[1]));
-        console.log('ID Token payload:', payload);
         const email = payload.email;
         if (!allowedEmails.includes(email)) {
           alert('Access denied: ' + email);
           return;
         }
-        // Hide login, show scanner UI
         document.getElementById('g_id_signin').style.display = 'none';
         document.getElementById('scanner-ui').style.display = 'block';
         startScanner();
@@ -75,32 +76,35 @@
         document.getElementById('g_id_signin'),
         { theme: 'outline', size: 'large' }
       );
-      // Removed auto prompt to avoid unwanted pop-ups
-      // google.accounts.id.prompt();
     };
 
     function appendData(id, timestamp) {
       const params = new URLSearchParams({ id, timestamp, idToken });
       const url = `${SCRIPT_URL}?${params.toString()}`;
       fetch(url, { mode: 'no-cors' })
-        .then(() => console.log('Data sent successfully'))
+        .then(() => console.log('Data sent successfully: ' + id))
         .catch(err => console.error('Error sending data:', err));
     }
 
     function logScan(data) {
-      if (SCANNED_IDS.has(data)) {
-        console.log('Duplicate scan ignored:', data);
-        return;
-      }
+      if (SCANNED_IDS.has(data)) return;
       SCANNED_IDS.add(data);
       const timestamp = new Date().toISOString();
-      const entry = `Scanned ID: ${data} | Time: ${timestamp}`;
-      logDiv.innerHTML = `<p>${entry}</p>` + logDiv.innerHTML;
+      const entry = `Scanned ID: ${data} | ${timestamp}`;
+      const p = document.createElement('p');
+      p.textContent = entry;
+      logDiv.prepend(p);
       appendData(data, timestamp);
     }
 
-    function manualTest() {
-      logScan('TEST');
+    function manualInput() {
+      const input = document.getElementById('manual-id').value.trim();
+      if (!input) {
+        alert('Please enter an ID');
+        return;
+      }
+      logScan(input);
+      document.getElementById('manual-id').value = '';
     }
 
     function startScanner() {
