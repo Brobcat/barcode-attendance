@@ -3,49 +3,114 @@
 <head>
   <title>Club Attendance Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://apis.google.com/js/api.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; }
-    #reader { width: 300px; height: 300px; margin: auto; }
+    #reader { width: 300px; height: 300px; margin: auto; display: none; }
     #log { margin-top: 20px; }
+    #login { margin-top: 30px; }
+    #g-auth { margin-top: 20px; }
   </style>
 </head>
 <body>
   <h1>Attendance Scanner</h1>
+
+  <div id="login">
+    <input type="text" id="username" placeholder="Username"><br><br>
+    <input type="password" id="password" placeholder="Password"><br><br>
+    <button onclick="checkLogin()">Login</button>
+    <p id="login-message" style="color:red;"></p>
+  </div>
+
+  <div id="g-auth" style="display:none;">
+    <button onclick="handleAuthClick()">Authorize Google Sheets</button>
+    <p id="auth-status"></p>
+  </div>
+
   <div id="reader"></div>
   <div id="log"></div>
 
   <script>
-    const logDiv = document.getElementById('log');
+    const allowedUsers = {
+      "officer1": "secret123",
+      "officer2": "pass456"
+    };
 
-    function logScan(data) {
-      const timestamp = new Date().toISOString();
+    let scannedIDs = [];
+    let sheetId = "1C7MVH3J-U42HNT5yXNEGHrRa8lMp9HiEYJ9UD5fnS4w"; // ⬅️ Replace with your actual Sheet ID
+    let clientId = "353375855512-09nu021l1sf9t4m1v25v4jof4d6150lg.apps.googleusercontent.com"; // ⬅️ Replace with your actual OAuth Client ID
 
-      // Log locally (you can replace this with a request to a backend or Google Sheets API)
-      const entry = `Scanned ID: ${data} | Time: ${timestamp}`;
-      console.log(entry);
-      logDiv.innerHTML = `<p>${entry}</p>` + logDiv.innerHTML;
+    function checkLogin() {
+      const user = document.getElementById("username").value;
+      const pass = document.getElementById("password").value;
 
-      // TODO: Replace with fetch() to send data to a backend/Google Sheets
+      if (allowedUsers[user] === pass) {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("g-auth").style.display = "block";
+      } else {
+        document.getElementById("login-message").innerText = "Invalid username or password.";
+      }
     }
 
-    const scanner = new Html5Qrcode("reader");
-    scanner.start(
-      { facingMode: "environment" },
-      {
-        fps: 10,
-        qrbox: 250
-      },
-      (decodedText) => {
-        logScan(decodedText);
-      },
-      (errorMessage) => {
-        // ignore errors
-      }
-    ).catch(err => {
-      console.error("Camera start error:", err);
-      logDiv.innerHTML = `<p style="color:red;">Camera Error: ${err}</p>`;
-    });
+    // Google API Auth
+    function handleAuthClick() {
+      gapi.load('client:auth2', () => {
+        gapi.auth2.init({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/spreadsheets'
+        }).then(() => {
+          gapi.auth2.getAuthInstance().signIn().then(() => {
+            document.getElementById("g-auth").style.display = "none";
+            document.getElementById("reader").style.display = "block";
+            document.getElementById("auth-status").innerText = "Authorized";
+            startScanner();
+          });
+        });
+      });
+    }
 
+    function logScan(data) {
+      if (scannedIDs.includes(data)) {
+        console.log("Duplicate scan ignored.");
+        return;
+      }
+
+      scannedIDs.push(data);
+      const timestamp = new Date().toISOString();
+      const entry = `Scanned ID: ${data} | Time: ${timestamp}`;
+      document.getElementById("log").innerHTML = `<p>${entry}</p>` + document.getElementById("log").innerHTML;
+      storeInSheet(data, timestamp);
+    }
+
+    function storeInSheet(id, timestamp) {
+      const values = [[id, timestamp]];
+      const body = { values };
+
+      gapi.client.sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range: "Sheet1!A:B",
+        valueInputOption: "RAW",
+        resource: body
+      }).then((response) => {
+        console.log("Data saved:", response);
+      }, (error) => {
+        console.error("Error saving to Sheets:", error);
+        document.getElementById("log").innerHTML = `<p style="color:red;">Error: ${error.result.error.message}</p>` + document.getElementById("log").innerHTML;
+      });
+    }
+
+    function startScanner() {
+      const scanner = new Html5Qrcode("reader");
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        (decodedText) => logScan(decodedText),
+        (err) => {}
+      ).catch(err => {
+        console.error("Camera error:", err);
+        document.getElementById("log").innerHTML = `<p style="color:red;">Camera error: ${err}</p>`;
+      });
+    }
   </script>
 </body>
 </html>
