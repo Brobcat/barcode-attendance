@@ -74,12 +74,13 @@
     function manualAppend() {
       const values = [[1]];
       const body = { values };
-      gapi.client.sheets.spreadsheets.values.append({
+      gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: '1C7MVH3J-U42HNT5yXNEGHrRa8lMp9HiEYJ9UD5fnS4w',
-        range: 'Sheet1!A:A',
+        range: 'Sheet1!A1',
         valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
-        resource: body
+         resource: {
+        values: [['Test']]
+        }
       }).then((response) => {
         console.log("Manual append success:", response);
       }).catch((error) => {
