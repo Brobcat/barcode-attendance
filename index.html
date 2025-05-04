@@ -29,7 +29,7 @@
       console.log(entry);
       logDiv.innerHTML = `<p>${entry}</p>` + logDiv.innerHTML;
 
-      const values = [[data, timestamp]];
+      const values = [[1]];
       const body = { values };
       gapi.client.sheets.spreadsheets.values.append({
         spreadsheetId: '1C7MVH3J-U42HNT5yXNEGHrRa8lMp9HiEYJ9UD5fnS4w',
