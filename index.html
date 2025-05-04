@@ -214,7 +214,7 @@
       scanner = new Html5Qrcode('reader');
       scanner.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: 500 },
+        { fps: 10, qrbox: { width: 600, height: 300 } }, // Set custom width and height
         decoded => { scanner.pause(); showPopup(decoded); },
         () => {}
       ).catch(err => console.error('Camera error:', err));
