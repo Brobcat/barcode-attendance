@@ -2,66 +2,116 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Club Attendance Scanner</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; }
-    #reader { width: 100%; max-width: 400px; height: 300px; margin: 20px auto; }
-    #log { margin-top: 20px; max-width: 400px; margin-left: auto; margin-right: auto; text-align: left; }
-    button { padding: 10px 20px; font-size: 1rem; margin: 5px; }
+    #scanner-ui { display: none; margin-top: 20px; }
+    #reader { width: 300px; margin: auto; }
+    #log { margin-top: 20px; }
+    #manual-btn { margin-bottom: 10px; }
   </style>
 </head>
 <body>
   <h1>Attendance Scanner</h1>
-  <button id="test-btn" onclick="manualTest()">Manual Append Test</button>
-  <div id="reader"></div>
-  <div id="log"></div>
+
+  <!-- Google Sign-In button -->
+  <div id="g_id_signin"></div>
+
+  <!-- Scanner UI (hidden until authorized) -->
+  <div id="scanner-ui">
+    <button id="manual-btn" onclick="manualTest()">Manual Append Test</button>
+    <div id="reader"></div>
+    <div id="log"></div>
+  </div>
 
   <script>
-    // Deployed Google Apps Script web app URL
+    const CLIENT_ID = '353375855512-09nu021l1sf9t4m1v25v4jof4d6150lg.apps.googleusercontent.com';
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc3BDq0UoF54rKl8MjqCd13yTEFv_hAWtwIYoD6cYPXy-AC7ekqGOO--PR2I7FpcJ/exec';
+    const allowedEmails = [
+      'jgdiers0205@gmail.com',
+      'officer2@example.com',
+      'officer3@example.com',
+      'officer4@example.com',
+      'officer5@example.com',
+      'officer6@example.com'
+    ];
 
+    let idToken = '';
     const logDiv = document.getElementById('log');
     const SCANNED_IDS = new Set();
 
-    function logScan(data) {
-      if (SCANNED_IDS.has(data)) return;
-      SCANNED_IDS.add(data);
+    // Callback after Google Sign-In
+    function handleCredentialResponse(response) {
+      console.log('handleCredentialResponse:', response);
+      idToken = response.credential;
+      try {
+        const payload = JSON.parse(atob(idToken.split('.')[1]));
+        console.log('ID Token payload:', payload);
+        const email = payload.email;
+        if (!allowedEmails.includes(email)) {
+          alert('Access denied: ' + email);
+          return;
+        }
+        // Hide login, show scanner UI
+        document.getElementById('g_id_signin').style.display = 'none';
+        document.getElementById('scanner-ui').style.display = 'block';
+        startScanner();
+      } catch (err) {
+        console.error('Token decode error:', err);
+      }
+    }
 
-      const timestamp = new Date().toISOString();
-      const entry = `ID: ${data} | Time: ${timestamp}`;
-      const p = document.createElement('p');
-      p.textContent = entry;
-      logDiv.prepend(p);
+    // Initialize Google Identity Services
+    window.onload = () => {
+      google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+        callback: handleCredentialResponse,
+        auto_select: false,
+        cancel_on_tap_outside: false
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('g_id_signin'),
+        { theme: 'outline', size: 'large' }
+      );
+      // Removed auto prompt to avoid unwanted pop-ups
+      // google.accounts.id.prompt();
+    };
 
-      // Send scan data via GET to Apps Script
-      const url = `${SCRIPT_URL}?id=${encodeURIComponent(data)}&timestamp=${encodeURIComponent(timestamp)}`;
+    function appendData(id, timestamp) {
+      const params = new URLSearchParams({ id, timestamp, idToken });
+      const url = `${SCRIPT_URL}?${params.toString()}`;
       fetch(url, { mode: 'no-cors' })
-        .then(() => console.log('Data sent:', data))
+        .then(() => console.log('Data sent successfully'))
         .catch(err => console.error('Error sending data:', err));
+    }
+
+    function logScan(data) {
+      if (SCANNED_IDS.has(data)) {
+        console.log('Duplicate scan ignored:', data);
+        return;
+      }
+      SCANNED_IDS.add(data);
+      const timestamp = new Date().toISOString();
+      const entry = `Scanned ID: ${data} | Time: ${timestamp}`;
+      logDiv.innerHTML = `<p>${entry}</p>` + logDiv.innerHTML;
+      appendData(data, timestamp);
     }
 
     function manualTest() {
       logScan('TEST');
     }
 
-    // Initialize and start the camera scanner
-    window.addEventListener('load', () => {
+    function startScanner() {
       const scanner = new Html5Qrcode('reader');
       scanner.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: 250 },
         decodedText => logScan(decodedText),
-        errorMessage => { /* ignore scan errors */ }
-      ).catch(err => {
-        console.error('Camera error:', err);
-        const errMsg = document.createElement('p');
-        errMsg.style.color = 'red';
-        errMsg.textContent = 'Camera error: ' + err;
-        logDiv.prepend(errMsg);
-      });
-    });
+        errorMessage => {}
+      ).catch(err => console.error('Camera error:', err));
+    }
   </script>
 </body>
 </html>
