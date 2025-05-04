@@ -7,16 +7,18 @@
     body { font-family: sans-serif; padding: 20px; text-align: center; }
     #reader { width: 300px; margin: auto; }
     #log { margin-top: 20px; }
+    #test-btn { margin-top: 10px; }
   </style>
 </head>
 <body>
   <h1>Attendance Scanner</h1>
+  <button id="test-btn" onclick="manualTest()">Manual Append Test</button>
   <div id="reader"></div>
   <div id="log"></div>
 
   <script>
     // URL of your deployed Google Apps Script web app
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc3BDq0UoF54rKl8MjqCd13yTEFv_hAWtwIYoD6cYPXy-AC7ekqGOO--PR2I7FpcJ/exec'; // Replace YOUR_DEPLOYMENT_ID
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc3BDq0UoF54rKl8MjqCd13yTEFv_hAWtwIYoD6cYPXy-AC7ekqGOO--PR2I7FpcJ/exec'; // replace with your exec URL
 
     const logDiv = document.getElementById('log');
     const SCANNED_IDS = new Set();
@@ -29,13 +31,16 @@
       const entry = `Scanned ID: ${data} | Time: ${timestamp}`;
       logDiv.innerHTML = `<p>${entry}</p>` + logDiv.innerHTML;
 
-      // Send scan data to Google Apps Script without needing OAuth
-      fetch(SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors', // Apps Script exec allows no-cors for public scripts
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: data, timestamp: timestamp })
-      }).catch(err => console.error('Error sending data to server:', err));
+      // Send scan data via GET (avoiding doPost e.postData issue)
+      const url = `${SCRIPT_URL}?id=${encodeURIComponent(data)}&timestamp=${encodeURIComponent(timestamp)}`;
+      fetch(url, { mode: 'no-cors' })
+        .then(() => console.log('Data sent successfully'))
+        .catch(err => console.error('Error sending data:', err));
+    }
+
+    function manualTest() {
+      // Manual test uses ID 'TEST'
+      logScan('TEST');
     }
 
     // Initialize and start the camera scanner
@@ -43,8 +48,8 @@
     scanner.start(
       { facingMode: "environment" },
       { fps: 10, qrbox: 250 },
-      (decodedText) => logScan(decodedText),
-      (errorMessage) => {}
+      decodedText => logScan(decodedText),
+      errorMessage => {} // ignore scanning errors
     ).catch(err => console.error("Camera error:", err));
   </script>
 </body>
