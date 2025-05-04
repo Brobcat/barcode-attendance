@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Club Attendance Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; }
-    #reader { width: 300px; margin: auto; }
-    #log { margin-top: 20px; }
-    #test-btn { margin-top: 10px; }
+    #reader { width: 100%; max-width: 400px; height: 300px; margin: 20px auto; }
+    #log { margin-top: 20px; max-width: 400px; margin-left: auto; margin-right: auto; text-align: left; }
+    button { padding: 10px 20px; font-size: 1rem; margin: 5px; }
   </style>
 </head>
 <body>
@@ -17,8 +19,8 @@
   <div id="log"></div>
 
   <script>
-    // URL of your deployed Google Apps Script web app
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc3BDq0UoF54rKl8MjqCd13yTEFv_hAWtwIYoD6cYPXy-AC7ekqGOO--PR2I7FpcJ/exec'; // replace with your exec URL
+    // Deployed Google Apps Script web app URL
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc3BDq0UoF54rKl8MjqCd13yTEFv_hAWtwIYoD6cYPXy-AC7ekqGOO--PR2I7FpcJ/exec';
 
     const logDiv = document.getElementById('log');
     const SCANNED_IDS = new Set();
@@ -28,29 +30,38 @@
       SCANNED_IDS.add(data);
 
       const timestamp = new Date().toISOString();
-      const entry = `Scanned ID: ${data} | Time: ${timestamp}`;
-      logDiv.innerHTML = `<p>${entry}</p>` + logDiv.innerHTML;
+      const entry = `ID: ${data} | Time: ${timestamp}`;
+      const p = document.createElement('p');
+      p.textContent = entry;
+      logDiv.prepend(p);
 
-      // Send scan data via GET (avoiding doPost e.postData issue)
+      // Send scan data via GET to Apps Script
       const url = `${SCRIPT_URL}?id=${encodeURIComponent(data)}&timestamp=${encodeURIComponent(timestamp)}`;
       fetch(url, { mode: 'no-cors' })
-        .then(() => console.log('Data sent successfully'))
+        .then(() => console.log('Data sent:', data))
         .catch(err => console.error('Error sending data:', err));
     }
 
     function manualTest() {
-      // Manual test uses ID 'TEST'
       logScan('TEST');
     }
 
     // Initialize and start the camera scanner
-    const scanner = new Html5Qrcode("reader");
-    scanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: 250 },
-      decodedText => logScan(decodedText),
-      errorMessage => {} // ignore scanning errors
-    ).catch(err => console.error("Camera error:", err));
+    window.addEventListener('load', () => {
+      const scanner = new Html5Qrcode('reader');
+      scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: 250 },
+        decodedText => logScan(decodedText),
+        errorMessage => { /* ignore scan errors */ }
+      ).catch(err => {
+        console.error('Camera error:', err);
+        const errMsg = document.createElement('p');
+        errMsg.style.color = 'red';
+        errMsg.textContent = 'Camera error: ' + err;
+        logDiv.prepend(errMsg);
+      });
+    });
   </script>
 </body>
 </html>
