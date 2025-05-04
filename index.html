@@ -6,111 +6,72 @@
   <script src="https://apis.google.com/js/api.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; text-align: center; }
-    #reader { width: 300px; height: 300px; margin: auto; display: none; }
+    #reader { width: 300px; margin: auto; }
     #log { margin-top: 20px; }
-    #login { margin-top: 30px; }
-    #g-auth { margin-top: 20px; }
   </style>
 </head>
 <body>
   <h1>Attendance Scanner</h1>
-
-  <div id="login">
-    <input type="text" id="username" placeholder="Username"><br><br>
-    <input type="password" id="password" placeholder="Password"><br><br>
-    <button onclick="checkLogin()">Login</button>
-    <p id="login-message" style="color:red;"></p>
-  </div>
-
-  <div id="g-auth" style="display:none;">
-    <button onclick="handleAuthClick()">Authorize Google Sheets</button>
-    <p id="auth-status"></p>
-  </div>
-
+  <button onclick="handleAuthClick()">Authorize Google Sheets</button>
   <div id="reader"></div>
   <div id="log"></div>
 
   <script>
-    const allowedUsers = {
-      "officer1": "secret123",
-      "officer2": "pass456"
-    };
-
-    let scannedIDs = [];
-    let sheetId = "1C7MVH3J-U42HNT5yXNEGHrRa8lMp9HiEYJ9UD5fnS4w"; // ⬅️ Replace with your actual Sheet ID
-    let clientId = "353375855512-09nu021l1sf9t4m1v25v4jof4d6150lg.apps.googleusercontent.com"; // ⬅️ Replace with your actual OAuth Client ID
-
-    function checkLogin() {
-      const user = document.getElementById("username").value;
-      const pass = document.getElementById("password").value;
-
-      if (allowedUsers[user] === pass) {
-        document.getElementById("login").style.display = "none";
-        document.getElementById("g-auth").style.display = "block";
-      } else {
-        document.getElementById("login-message").innerText = "Invalid username or password.";
-      }
-    }
-
-    // Google API Auth
-    function handleAuthClick() {
-      gapi.load('client:auth2', () => {
-        gapi.auth2.init({
-          client_id: clientId,
-          scope: 'https://www.googleapis.com/auth/spreadsheets'
-        }).then(() => {
-          gapi.auth2.getAuthInstance().signIn().then(() => {
-            document.getElementById("g-auth").style.display = "none";
-            document.getElementById("reader").style.display = "block";
-            document.getElementById("auth-status").innerText = "Authorized";
-            startScanner();
-          });
-        });
-      });
-    }
+    const logDiv = document.getElementById('log');
+    const SCANNED_IDS = new Set();
 
     function logScan(data) {
-      if (scannedIDs.includes(data)) {
-        console.log("Duplicate scan ignored.");
-        return;
-      }
+      if (SCANNED_IDS.has(data)) return;
+      SCANNED_IDS.add(data);
 
-      scannedIDs.push(data);
       const timestamp = new Date().toISOString();
       const entry = `Scanned ID: ${data} | Time: ${timestamp}`;
-      document.getElementById("log").innerHTML = `<p>${entry}</p>` + document.getElementById("log").innerHTML;
-      storeInSheet(data, timestamp);
-    }
+      console.log(entry);
+      logDiv.innerHTML = `<p>${entry}</p>` + logDiv.innerHTML;
 
-    function storeInSheet(id, timestamp) {
-      const values = [[id, timestamp]];
+      const values = [[data, timestamp]];
       const body = { values };
-
       gapi.client.sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range: "Sheet1!A:B",
-        valueInputOption: "RAW",
+        spreadsheetId: '1C7MVH3J-U42HNT5yXNEGHrRa8lMp9HiEYJ9UD5fnS4w',
+        range: 'Sheet1!A:B',
+        valueInputOption: 'RAW',
         resource: body
       }).then((response) => {
-        console.log("Data saved:", response);
-      }, (error) => {
-        console.error("Error saving to Sheets:", error);
-        document.getElementById("log").innerHTML = `<p style="color:red;">Error: ${error.result.error.message}</p>` + document.getElementById("log").innerHTML;
+        console.log(`${response.result.updates.updatedCells} cells appended.`);
       });
     }
 
-    function startScanner() {
-      const scanner = new Html5Qrcode("reader");
-      scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        (decodedText) => logScan(decodedText),
-        (err) => {}
-      ).catch(err => {
-        console.error("Camera error:", err);
-        document.getElementById("log").innerHTML = `<p style="color:red;">Camera error: ${err}</p>`;
+    const scanner = new Html5Qrcode("reader");
+    scanner.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: 250
+      },
+      (decodedText) => {
+        logScan(decodedText);
+      },
+      (errorMessage) => {
+        // ignore errors
+      }
+    ).catch(err => console.error("Camera start error:", err));
+
+    function handleAuthClick() {
+      gapi.auth2.getAuthInstance().signIn();
+    }
+
+    function initClient() {
+      gapi.client.init({
+        apiKey: 'AIzaSyADB87h0Lfjfzk5qX_ab7HPcJFMuvt-PJI',
+        clientId: '353375855512-09nu021l1sf9t4m1v25v4jof4d6150lg.apps.googleusercontent.com',
+        scope: 'https://www.googleapis.com/auth/spreadsheets',
+        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4']
+      }).then(() => {
+        console.log("GAPI client initialized.");
       });
     }
+
+    gapi.load('client:auth2', initClient);
   </script>
 </body>
 </html>
