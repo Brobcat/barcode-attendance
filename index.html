@@ -24,13 +24,14 @@
   <div id="scanner-ui">
     <div id="manual-container">
       <input type="text" id="manual-id" placeholder="Enter ID to append">
-      <button onclick="manualInput()">Append ID</button>
+      <button id="manual-btn" onclick="manualInput()">Append ID</button>
     </div>
     <div id="reader"></div>
     <div id="log"></div>
   </div>
 
   <script>
+    // Configuration
     const CLIENT_ID = '353375855512-09nu021l1sf9t4m1v25v4jof4d6150lg.apps.googleusercontent.com';
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc3BDq0UoF54rKl8MjqCd13yTEFv_hAWtwIYoD6cYPXy-AC7ekqGOO--PR2I7FpcJ/exec';
     const allowedEmails = [
@@ -46,7 +47,7 @@
     const logDiv = document.getElementById('log');
     const SCANNED_IDS = new Set();
 
-    // Callback after Google Sign-In
+    // Google Sign-In callback
     function handleCredentialResponse(response) {
       idToken = response.credential;
       try {
@@ -56,6 +57,7 @@
           alert('Access denied: ' + email);
           return;
         }
+        // Show scanner UI
         document.getElementById('g_id_signin').style.display = 'none';
         document.getElementById('scanner-ui').style.display = 'block';
         startScanner();
@@ -78,42 +80,46 @@
       );
     };
 
+    // Send data to Apps Script
     function appendData(id, timestamp) {
       const params = new URLSearchParams({ id, timestamp, idToken });
       const url = `${SCRIPT_URL}?${params.toString()}`;
       fetch(url, { mode: 'no-cors' })
-        .then(() => console.log('Data sent successfully: ' + id))
+        .then(() => console.log('Data sent:', id))
         .catch(err => console.error('Error sending data:', err));
     }
 
-    function logScan(data) {
-      if (SCANNED_IDS.has(data)) return;
-      SCANNED_IDS.add(data);
+    // Log scanned or manual ID
+    function logScan(id) {
+      if (SCANNED_IDS.has(id)) return;
+      SCANNED_IDS.add(id);
       const timestamp = new Date().toISOString();
-      const entry = `Scanned ID: ${data} | ${timestamp}`;
+      const entry = `ID: ${id} | ${timestamp}`;
       const p = document.createElement('p');
       p.textContent = entry;
       logDiv.prepend(p);
-      appendData(data, timestamp);
+      appendData(id, timestamp);
     }
 
+    // Handle manual input
     function manualInput() {
-      const input = document.getElementById('manual-id').value.trim();
-      if (!input) {
+      const value = document.getElementById('manual-id').value.trim();
+      if (!value) {
         alert('Please enter an ID');
         return;
       }
-      logScan(input);
+      logScan(value);
       document.getElementById('manual-id').value = '';
     }
 
+    // Initialize and start scanner
     function startScanner() {
       const scanner = new Html5Qrcode('reader');
       scanner.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: 250 },
         decodedText => logScan(decodedText),
-        errorMessage => {}
+        () => {}
       ).catch(err => console.error('Camera error:', err));
     }
   </script>
